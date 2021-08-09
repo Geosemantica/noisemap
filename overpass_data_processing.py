@@ -9,7 +9,14 @@ tags_dict =['highway',
             'railway']
 keys = []
 tags = []
-export.drop(export[(export['highway']=='') & (export['railway']=='')].index, inplace=True)
+
+filter ='export['
+for tag in tags_dict:
+    if tag in export.columns:
+        filter += f"(export['{tag}']=='') &"
+filter= filter[:-2] + '].index'
+export.drop(eval(filter), inplace=True)
+
 for x in range(export.shape[0]):
     for tag in tags_dict:
         if tag in export.columns:
