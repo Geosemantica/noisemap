@@ -6,18 +6,14 @@ path = os.path.dirname(os.path.realpath(__file__))
 export = gp.read_file(path+'/export.geojson')
 
 tags_dict =['highway',
-            'amenity',
-            'tourism',
-            'historic',
-            'building:architecture',
-            'artwork_type',
-            'zoo']
+            'railway']
 keys = []
 tags = []
+export.drop(export[(export['highway']=='') & (export['railway']=='')].index, inplace=True)
 for x in range(export.shape[0]):
     for tag in tags_dict:
         if tag in export.columns:
-            if export[tag].values[x] is not None:
+            if export[tag].values[x]:
                 tags.append(tag)
                 keys.append(export[tag].values[x])
                 break
