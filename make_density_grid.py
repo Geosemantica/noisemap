@@ -54,14 +54,14 @@ print('grid ready')
 print(grid.crs, houses.crs)
 data = gp.sjoin(grid, houses)
 data = data.groupby('ID').sum().reset_index(0)
-print(data)
 print('sjoin ready')
 
-grid = grid.merge(data, on='ID')
+grid = grid.merge(data, how='outer', on='ID')
 grid = grid.to_crs(epsg=4326)
 grid['area']= grid['area'].fillna(0)
 grid['density'] = grid['area']/(1000*1000)
 grid = grid[['ID','density','geometry']]
+print(grid)
 print('merge ready')
 
 with open(path+'/density_grid.geojson','w') as f:
