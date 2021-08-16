@@ -11,8 +11,11 @@ density_grid = gp.read_file(path+'/density_grid.geojson')
 
 noise_makers = gp.sjoin(noise_makers, density_grid, how='left').merge(tags_ref,on=['tag','key'])
 noise_makers = noise_makers[['geometry','sound_level','density']]
+print(noise_makers[noise_makers['geometry'].is_empty])
 
-noise_makers = noise_makers.fillna(0)
+noise_makers['sound_level'].fillna(0, inplace=True)
+noise_makers['density'].fillna(0, inplace=True)
+noise_makers['geometry'].fillna(inplace=True)
 
 noise_makers['buffer45'] = 10 ** ((noise_makers['sound_level'] - 45) /20.0) / (1 - noise_makers['density'])
 noise_makers['buffer55'] = 10 ** ((noise_makers['sound_level'] - 55) /20.0) / (1 - noise_makers['density'])
