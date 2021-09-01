@@ -16,6 +16,7 @@ def make_map(noise_makers='./noise_makers.geojson', tags="./tags.csv", density_g
     density_grid = gp.read_file(density_grid)
 
     noise_makers = gp.sjoin(noise_makers, density_grid, how='left').merge(tags_ref,on=['tag','key'])
+    noise_makers['sound_level'] = noise_makers['sound_level'] - (noise_makers['layer'] * 5)
     fields = ['geometry','sound_level','density']
     if use_height:
         fields.append('height')

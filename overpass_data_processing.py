@@ -1,4 +1,5 @@
 import geopandas as gp
+import pandas as pd
 import os
 
 path = os.path.dirname(os.path.realpath(__file__))
@@ -31,11 +32,13 @@ def preprocess(file='./export.geojson', use_height=False):
                     break
     export['tag']=tags
     export['key']=keys
-    fields = ['tag', 'key', 'geometry']
+    fields = ['tag', 'key', 'geometry', 'layer']
     if use_height:
         export['height'] = export['height'].fillna(0)
         fields.append('height')
     export = export[fields]
-
+    # допущение, что чем выше дорога, тем лучше шумоизоляция
+    export['layer'] = pd.to_numeric(export['layer'], errors='coerce').fillna(0)
+    export[export['layer'] < 0]['layer'] = 0
     with open(f"./noise_makers.geojson",'w') as f:
         f.write(export.to_json())
