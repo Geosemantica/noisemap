@@ -38,7 +38,9 @@ print('houses ready')
 houses['area'] = houses.area
 
 bounds = gp.read_file(path+'/noise_makers.geojson').to_crs(epsg=32636).total_bounds
+# построить сетку для разрезания полигонов шума на меньшие куски
 make_fishnet(bounds, 400, 400, file=f"{path}/super_grid.shp")
+# построить сетку для расчета плотности зданий
 make_fishnet(bounds, file=f"{path}/grid.shp")
 grid = gp.read_file(f"{path}/grid.shp")
 grid.crs = "EPSG:32636"

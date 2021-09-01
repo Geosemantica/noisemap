@@ -10,8 +10,7 @@ tags_ref = pd.read_csv(path+'/tags.csv',sep=';')
 density_grid = gp.read_file(path+'/density_grid.geojson')
 
 noise_makers = gp.sjoin(noise_makers, density_grid, how='left').merge(tags_ref,on=['tag','key'])
-noise_makers = noise_makers[['geometry','sound_level','density']]
-print(noise_makers[noise_makers['geometry'].is_empty])
+noise_makers = noise_makers[['geometry','sound_level','density', 'height']]
 
 noise_makers['sound_level'].fillna(0, inplace=True)
 noise_makers['density'].fillna(0, inplace=True)
@@ -20,7 +19,10 @@ noise_makers['geometry'].fillna(inplace=True)
 noise_makers['buffer45'] = 10 ** ((noise_makers['sound_level'] - 45) / 20) / (1 - noise_makers['density'])
 noise_makers['buffer55'] = 10 ** ((noise_makers['sound_level'] - 55) / 20) / (1 - noise_makers['density'])
 noise_makers['buffer65'] = 10 ** ((noise_makers['sound_level'] - 65) / 20) / (1 - noise_makers['density'])
-
+# учесть высоту дороги
+noise_makers['buffer45'] = noise_makers['buffer45'] - noise_makers['height']
+noise_makers['buffer55'] = noise_makers['buffer55'] - noise_makers['height']
+noise_makers['buffer65'] = noise_makers['buffer65'] - noise_makers['height']
 
 noise_makers = noise_makers.to_crs(epsg=32636)
 
@@ -32,21 +34,23 @@ for x in range(len(noise_makers)):
     geom = noise_makers['geometry'].values[x] 
     
     size65 = noise_makers['buffer65'].values[x]
-    buff65 = geom.buffer(size65) 
-    values.append(65) 
-    geoms.append(buff65)
+    # исключить отрицательные и нулевые значения буфера
+    if size65 > 0:
+        buff65 = geom.buffer(size65)
+        values.append(65)
+        geoms.append(buff65)
 
     size55 = noise_makers['buffer55'].values[x]
-    
-    buff55 = geom.buffer(size55)
-    values.append(55)
-    geoms.append(buff55)
+    if size55 > 0:
+        buff55 = geom.buffer(size55)
+        values.append(55)
+        geoms.append(buff55)
     
     size45 = noise_makers['buffer45'].values[x]
-    
-    buff45 = geom.buffer(size45)
-    values.append(45)
-    geoms.append(buff45)
+    if size45 > 0:
+        buff45 = geom.buffer(size45)
+        values.append(45)
+        geoms.append(buff45)
 
 result = gp.GeoDataFrame()
 result.geometry = geoms 
@@ -55,12 +59,10 @@ result['value'] = values
 result.crs = "EPSG:32636"
 result.geometry = result.buffer(0.00000001)
 
-print('result', result)
-
 # смерджить полигоны по группам value
 gdf = iron_dissolver(result)
 gdf.crs = "EPSG:32636"
-print('dissolved', gdf)
+
 buffer45 = gdf[gdf['value']==45]
 buffer55 = gdf[gdf['value']==55]
 buffer65 = gdf[gdf['value']==65]
@@ -70,15 +72,16 @@ grid.crs = "EPSG:32636"
 
 values = []
 geoms = []
-print(buffer45)
+
 # острожно: функция имеет побочный эффект (список geoms)
 buffer45 = grid_intersection(buffer45, grid, values, geoms)
 buffer55 = grid_intersection(buffer55, grid, values, geoms)
 gdf = grid_intersection(buffer65, grid, values, geoms)
-print('gdf', gdf)
+
 gdf[gdf['value']==45] = gp.overlay(gdf[gdf['value']==45], gdf[gdf['value']==55], how='difference')
 gdf[gdf['value']==55] = gp.overlay(gdf[gdf['value']==55], gdf[gdf['value']==65], how='difference')
 gdf.crs = "EPSG:32636"
+gdf.drop(gdf[gdf['value'].isnull() == True].index)
 gdf = gdf.to_crs(epsg=4326)
 gdf = gdf.sort_values('value')[['geometry', 'value']]
 
