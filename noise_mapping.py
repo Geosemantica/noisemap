@@ -1,7 +1,7 @@
 import geopandas as gp
 import pandas as pd
 import os
-from support_functions import grid_intersection, geo_difference, iron_dissolver
+from support_functions import grid_intersection, iron_dissolver
 
 path = os.path.dirname(os.path.realpath(__file__))
 
@@ -17,9 +17,9 @@ noise_makers['sound_level'].fillna(0, inplace=True)
 noise_makers['density'].fillna(0, inplace=True)
 noise_makers['geometry'].fillna(inplace=True)
 
-noise_makers['buffer45'] = 10 ** ((noise_makers['sound_level'] - 45) /20.0) / (1 - noise_makers['density'])
-noise_makers['buffer55'] = 10 ** ((noise_makers['sound_level'] - 55) /20.0) / (1 - noise_makers['density'])
-noise_makers['buffer65'] = 10 ** ((noise_makers['sound_level'] - 65) /20.0) / (1 - noise_makers['density'])
+noise_makers['buffer45'] = 10 ** ((noise_makers['sound_level'] - 45) / 20) / (1 - noise_makers['density'])
+noise_makers['buffer55'] = 10 ** ((noise_makers['sound_level'] - 55) / 20) / (1 - noise_makers['density'])
+noise_makers['buffer65'] = 10 ** ((noise_makers['sound_level'] - 65) / 20) / (1 - noise_makers['density'])
 
 
 noise_makers = noise_makers.to_crs(epsg=32636)
@@ -52,36 +52,35 @@ result = gp.GeoDataFrame()
 result.geometry = geoms 
 result['value'] = values
 
-result.crs = {'init': 'epsg:32636'}
-result = result.to_crs(epsg=4326)
+result.crs = "EPSG:32636"
+result.geometry = result.buffer(0.00000001)
 
-buffer45 = result[result['value']==45]
-buffer55 = result[result['value']==55]
-buffer65 = result[result['value']==65]
+print('result', result)
 
-grid = gp.read_file(path+'/density_grid.geojson')
+# смерджить полигоны по группам value
+gdf = iron_dissolver(result)
+gdf.crs = "EPSG:32636"
+print('dissolved', gdf)
+buffer45 = gdf[gdf['value']==45]
+buffer55 = gdf[gdf['value']==55]
+buffer65 = gdf[gdf['value']==65]
 
-values = [] 
+grid = gp.read_file(path+'/super_grid.shp')
+grid.crs = "EPSG:32636"
+
+values = []
 geoms = []
+print(buffer45)
+# острожно: функция имеет побочный эффект (список geoms)
+buffer45 = grid_intersection(buffer45, grid, values, geoms)
+buffer55 = grid_intersection(buffer55, grid, values, geoms)
+gdf = grid_intersection(buffer65, grid, values, geoms)
+print('gdf', gdf)
+gdf[gdf['value']==45] = gp.overlay(gdf[gdf['value']==45], gdf[gdf['value']==55], how='difference')
+gdf[gdf['value']==55] = gp.overlay(gdf[gdf['value']==55], gdf[gdf['value']==65], how='difference')
+gdf.crs = "EPSG:32636"
+gdf = gdf.to_crs(epsg=4326)
+gdf = gdf.sort_values('value')[['geometry', 'value']]
 
-buffer45 = grid_intersection(buffer45,grid,values, geoms)
-buffer55 = grid_intersection(buffer55,grid,values, geoms)
-buffer65 = grid_intersection(buffer65,grid,values, geoms)
-
-buffer45.geometry = buffer45.buffer(0.00000001)
-buffer55.geometry = buffer55.buffer(0.00000001)
-buffer65.geometry = buffer65.buffer(0.00000001)
-
-buffer45 = geo_difference(buffer45, buffer55)
-buffer55 = geo_difference(buffer55, buffer65)
-
-gdf = buffer45.append(buffer55).append(buffer65)
-
-gdf.geometry = gdf.buffer(0.00000001)
-
-gdf = iron_dissolver(gdf)
-
-gdf = gdf.sort_values('value')[['geometry','value']]
-
-with open(path+'/dissolved.geojson','w') as f:
+with open(path+'/dissolved.geojson', 'w') as f:
     f.write(gdf.to_json())

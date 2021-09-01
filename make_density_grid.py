@@ -5,18 +5,13 @@ import os, math
 path = os.path.dirname(os.path.realpath(__file__))
 
 
-def make_fishnet(bbox):
-
-    #data = data.to_crs(epsg=32636)
-    
+def make_fishnet(bbox, dx=1000, dy=1000, file='grid.shp'):
     minx,miny,maxx,maxy = bbox
-    dx = 1000
-    dy = 1000
 
     nx = int(math.ceil(abs(maxx - minx)/dx))
     ny = int(math.ceil(abs(maxy - miny)/dy))
 
-    with shp.Writer(path+'/grid.shp', shapeType=shp.POLYGON) as w:
+    with shp.Writer(file, shapeType=shp.POLYGON) as w:
         w.autoBalance = 1
         w.field("ID")
         id=0
@@ -34,10 +29,6 @@ def make_fishnet(bbox):
                 w.poly(parts)
                 w.record(id)
 
-    grid = gp.read_file(path+'/grid.shp')
-    grid.crs = {'init': 'epsg:32636'}
-    return grid
-
 
 houses = gp.read_file(path+'/houses.geojson')
 houses = houses.to_crs(epsg=32636)
@@ -46,10 +37,11 @@ print('houses ready')
 
 houses['area'] = houses.area
 
-#grid = gp.read_file(path+'/grid.shp')
 bounds = gp.read_file(path+'/noise_makers.geojson').to_crs(epsg=32636).total_bounds
-grid = make_fishnet(bounds)
-#grid = grid.to_crs(epsg=32636)
+make_fishnet(bounds, 400, 400, file=f"{path}/super_grid.shp")
+make_fishnet(bounds, file=f"{path}/grid.shp")
+grid = gp.read_file(f"{path}/grid.shp")
+grid.crs = "EPSG:32636"
 print('grid ready')
 print(grid.crs, houses.crs)
 data = gp.sjoin(grid, houses)
@@ -65,4 +57,4 @@ print(grid)
 print('merge ready')
 
 with open(path+'/density_grid.geojson','w') as f:
-	f.write(grid.to_json())
+    f.write(grid.to_json())

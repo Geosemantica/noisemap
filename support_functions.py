@@ -2,11 +2,11 @@ from shapely.ops import unary_union
 from rtree import index
 import geopandas as gp
 
+
 def grid_intersection(data,grid,values,geoms):
     gdf = gp.GeoDataFrame()
     for x in range(data.shape[0]):
-        if x%500==0:
-            print(round(float(x)/data.shape[0],2),'done')
+        print("Intersection: processing ", data['value'].values[x])
         geom1  = data.geometry.values[x]
         value = data['value'].values[x]
         for y in range(grid.shape[0]):
@@ -19,6 +19,7 @@ def grid_intersection(data,grid,values,geoms):
     gdf['value'] = values
     print('gdf done')
     return gdf
+
 
 def geo_difference(gdf1, gdf2):
     coords={}
@@ -36,6 +37,7 @@ def geo_difference(gdf1, gdf2):
         geom1 = gdf1['geometry'].values[x]
         point = (geom1.centroid.x,geom1.centroid.y)
         list_of_nearest = ind.nearest(point, 50)
+        print('nearest:', list(list_of_nearest))
         for y in list_of_nearest:
             geom2 = gdf2['geometry'].values[y]
             geom1 = geom1.difference(geom2)
@@ -43,6 +45,7 @@ def geo_difference(gdf1, gdf2):
     gdf1['geometry'] = geoms
 
     return gdf1[gdf1['geometry'].notnull()]
+
 
 def set_spatial_index(coordinates):
     p = index.Property()
@@ -52,6 +55,7 @@ def set_spatial_index(coordinates):
         ind.add(x,y)
     return ind
 
+
 def iron_dissolver(data):
 
     print('dissolver starts')
@@ -59,23 +63,6 @@ def iron_dissolver(data):
     data = data[['geometry','value']]
 
     gdf =gp.GeoDataFrame()
-    
-    geoms=[]
-    values=[]
-
-    for x in range(gdf.shape[0]):
-        geom = gdf.geometry.values[x]
-        val = gdf['value'].values[x]
-        if geom.is_empty == False and geom.is_valid:
-            if geom.type=='LineString':
-                geoms.append(geom)
-                values.append(val)
-            else:
-                for g in geom:
-                    geoms.append(g)
-                    values.append(val)
-    gdf.geometry = geoms
-    gdf['value'] = values
 
     geoms=[]
     values=[]
@@ -91,7 +78,5 @@ def iron_dissolver(data):
 
     gdf.geometry = geoms
     gdf['value'] = values
-
-    gdf.crs = {'init': u'epsg:4326'}
 
     return gdf
