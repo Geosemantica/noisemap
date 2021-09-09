@@ -106,7 +106,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Generate noise map based on osm data (QuickOSM can be also used)\
                                     and buildings geometry")
     parser.add_argument("-e", "--export" , default='./export.geojson', help="path to file with osm data")
-    parser.add_argument("-p", "--projection", default=32626, type=int, help="projection that will be used for calculations"
+    parser.add_argument("-p", "--projection", default=32636, type=int, help="projection that will be used for calculations"
                                                                             "(data on input and output is always in 4326)")
     parser.add_argument('-b', '--buildings', default='./houses.geojson', help='path to file with buildings geometry')
     parser.add_argument('-t', '--tags', default='./tags.csv', help='path to csv file with noise level of every type of object')
