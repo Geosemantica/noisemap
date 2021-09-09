@@ -4,6 +4,7 @@ import geopandas as gp
 
 
 def grid_intersection(data,grid,values,geoms):
+    print('Apply grid intersections...')
     gdf = gp.GeoDataFrame()
     for x in range(data.shape[0]):
         print("Intersection: processing ", data['value'].values[x])
@@ -70,7 +71,6 @@ def iron_dissolver(data, levels):
     for val in levels:
         print('loop, processing %i'%val)
         df = data[data['value']==val]
-        print(df.shape)
         df.geometry = df.buffer(0)
         geom = unary_union(df.geometry.values)
         geoms.append(geom)

@@ -37,7 +37,7 @@ def make_map(noise_makers='./noise_makers.geojson', tags="./tags.csv", density_g
 
     values = []
     geoms = []
-
+    print("Generating buffers...")
     for x in range(len(noise_makers)):
 
         geom = noise_makers['geometry'].values[x]
@@ -77,6 +77,7 @@ def make_map(noise_makers='./noise_makers.geojson', tags="./tags.csv", density_g
         gdf = grid_intersection(buffers[i], grid, values, geoms)
 
     # использовать георазность между полигонами
+    print("Make geodifference...")
     for i in range(len(levels)-1):
         gdf[gdf['value']==levels[i]] = gp.overlay(gdf[gdf['value']==levels[i]], gdf[gdf['value']==levels[i+1]], how='difference')
     gdf.crs = f"EPSG:{proj}"
