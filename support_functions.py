@@ -56,7 +56,7 @@ def set_spatial_index(coordinates):
     return ind
 
 
-def iron_dissolver(data):
+def iron_dissolver(data, levels):
 
     print('dissolver starts')
     
@@ -67,7 +67,7 @@ def iron_dissolver(data):
     geoms=[]
     values=[]
 
-    for val in [65,55,45]:
+    for val in levels:
         print('loop, processing %i'%val)
         df = data[data['value']==val]
         print(df.shape)

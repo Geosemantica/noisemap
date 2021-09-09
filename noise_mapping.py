@@ -7,7 +7,7 @@ from make_density_grid import generate_grids
 
 
 def make_map(noise_makers='./noise_makers.geojson', tags="./tags.csv", density_grid="./density_grid.geojson",
-             super_grid='./super_grid.shp', use_height=False, proj=32636):
+             super_grid='./super_grid.shp', levels=(45,55,65), use_height=False, proj=32636):
     print("Starting mapping")
     path = os.path.dirname(os.path.realpath(__file__))
 
@@ -26,14 +26,12 @@ def make_map(noise_makers='./noise_makers.geojson', tags="./tags.csv", density_g
     noise_makers['density'].fillna(0, inplace=True)
     noise_makers['geometry'].fillna(inplace=True)
 
-    noise_makers['buffer45'] = 10 ** ((noise_makers['sound_level'] - 45) / 20) / (1 - noise_makers['density'])
-    noise_makers['buffer55'] = 10 ** ((noise_makers['sound_level'] - 55) / 20) / (1 - noise_makers['density'])
-    noise_makers['buffer65'] = 10 ** ((noise_makers['sound_level'] - 65) / 20) / (1 - noise_makers['density'])
+    for level in levels:
+        noise_makers[f'buffer{level}'] = 10 ** ((noise_makers['sound_level'] - level) / 20) / (1 - noise_makers['density'])
     # учесть высоту дороги
     if use_height:
-        noise_makers['buffer45'] = noise_makers['buffer45'] - noise_makers['height']
-        noise_makers['buffer55'] = noise_makers['buffer55'] - noise_makers['height']
-        noise_makers['buffer65'] = noise_makers['buffer65'] - noise_makers['height']
+        for level in levels:
+            noise_makers[f'buffer{level}'] = noise_makers[f'buffer{level}'] - noise_makers['height']
 
     noise_makers = noise_makers.to_crs(epsg=proj)
 
@@ -44,24 +42,13 @@ def make_map(noise_makers='./noise_makers.geojson', tags="./tags.csv", density_g
 
         geom = noise_makers['geometry'].values[x]
 
-        size65 = noise_makers['buffer65'].values[x]
-        # исключить отрицательные и нулевые значения буфера
-        if size65 > 0:
-            buff65 = geom.buffer(size65)
-            values.append(65)
-            geoms.append(buff65)
-
-        size55 = noise_makers['buffer55'].values[x]
-        if size55 > 0:
-            buff55 = geom.buffer(size55)
-            values.append(55)
-            geoms.append(buff55)
-
-        size45 = noise_makers['buffer45'].values[x]
-        if size45 > 0:
-            buff45 = geom.buffer(size45)
-            values.append(45)
-            geoms.append(buff45)
+        for level in levels:
+            size = noise_makers[f'buffer{level}'].values[x]
+            # исключить отрицательные и нулевые значения буфера
+            if size > 0:
+                buff = geom.buffer(size)
+                values.append(level)
+                geoms.append(buff)
 
     result = gp.GeoDataFrame()
     result.geometry = geoms
@@ -71,12 +58,12 @@ def make_map(noise_makers='./noise_makers.geojson', tags="./tags.csv", density_g
     result.geometry = result.buffer(0.00000001)
 
     # смерджить полигоны по группам value
-    gdf = iron_dissolver(result)
+    gdf = iron_dissolver(result, levels)
     gdf.crs = f"EPSG:{proj}"
 
-    buffer45 = gdf[gdf['value']==45]
-    buffer55 = gdf[gdf['value']==55]
-    buffer65 = gdf[gdf['value']==65]
+    buffers = []
+    for level in levels:
+        buffers.append(gdf[gdf['value']==level])
 
     # использовать плотную сетку для разрезания полигонов на более простые
     grid = gp.read_file(super_grid)
@@ -85,15 +72,19 @@ def make_map(noise_makers='./noise_makers.geojson', tags="./tags.csv", density_g
     values = []
     geoms = []
 
-    # острожно: функция имеет побочный эффект (список geoms)
-    buffer45 = grid_intersection(buffer45, grid, values, geoms)
-    buffer55 = grid_intersection(buffer55, grid, values, geoms)
-    gdf = grid_intersection(buffer65, grid, values, geoms)
+    # острожно: функция имеет побочный эффект (список geoms), применяется накопительный эффект
+    for i, level in enumerate(levels):
+        gdf = grid_intersection(buffers[i], grid, values, geoms)
 
-    gdf[gdf['value']==45] = gp.overlay(gdf[gdf['value']==45], gdf[gdf['value']==55], how='difference')
-    gdf[gdf['value']==55] = gp.overlay(gdf[gdf['value']==55], gdf[gdf['value']==65], how='difference')
+    # использовать георазность между полигонами
+    for i in range(len(levels)-1):
+        gdf[gdf['value']==levels[i]] = gp.overlay(gdf[gdf['value']==levels[i]], gdf[gdf['value']==levels[i+1]], how='difference')
     gdf.crs = f"EPSG:{proj}"
     gdf.drop(gdf[gdf['value'].isnull() == True].index, inplace=True)
+    gdf.geometry = gdf.buffer(10**-8)
+    gdf = gdf.loc[gdf['geometry'].is_valid]
+    # разбить мультигеометрию
+    gdf = gdf.explode('geometry')
     gdf = gdf.to_crs(epsg=4326)
     gdf = gdf.sort_values('value')[['geometry', 'value']]
 
@@ -105,7 +96,8 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description="Generate noise map based on osm data (QuickOSM can be also used)\
                                     and buildings geometry")
-    parser.add_argument("-e", "--export" , default='./export.geojson', help="path to file with osm data")
+    parser.add_argument("-e", "--export", default='./export.geojson', help="path to file with osm data")
+    parser.add_argument("-n", "--noise-levels", type=int, nargs="+", default=0, help="levels of noise in resulting polygons")
     parser.add_argument("-p", "--projection", default=32636, type=int, help="projection that will be used for calculations"
                                                                             "(data on input and output is always in 4326)")
     parser.add_argument('-b', '--buildings', default='./houses.geojson', help='path to file with buildings geometry')
@@ -114,6 +106,8 @@ if __name__ == '__main__':
                                                                         "(simplification) of resulting polygons")
     parser.add_argument('--with-height', action='store_true', help="use height of osm objects in calculations")
     args = parser.parse_args()
+    levels = [45, 55, 65] if not args.noise_levels else args.noise_levels
+    levels.sort()
     preprocess(file=args.export, use_height=args.with_height)
     generate_grids(houses=args.buildings, cell_size=args.cell_size, proj=args.projection)
-    make_map(tags=args.tags, proj=args.projection, use_height=args.with_height)
+    make_map(tags=args.tags, proj=args.projection, levels=levels, use_height=args.with_height)
