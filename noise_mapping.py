@@ -61,20 +61,12 @@ def make_map(noise_makers='./noise_makers.geojson', tags="./tags.csv", density_g
     gdf = iron_dissolver(result, levels)
     gdf.crs = f"EPSG:{proj}"
 
-    buffers = []
-    for level in levels:
-        buffers.append(gdf[gdf['value']==level])
-
     # использовать плотную сетку для разрезания полигонов на более простые
     grid = gp.read_file(super_grid)
     grid.crs = f"EPSG:{proj}"
 
-    values = []
-    geoms = []
-
-    # острожно: функция имеет побочный эффект (список geoms), применяется накопительный эффект
-    for i, level in enumerate(levels):
-        gdf = grid_intersection(buffers[i], grid, values, geoms)
+    # обрезать полигоны по сетке, все что вне сетки - оставить как есть
+    gdf = grid_intersection(gdf, grid)
 
     # использовать георазность между полигонами
     print("Make geodifference...")
@@ -83,7 +75,7 @@ def make_map(noise_makers='./noise_makers.geojson', tags="./tags.csv", density_g
     gdf.crs = f"EPSG:{proj}"
     gdf.drop(gdf[gdf['value'].isnull() == True].index, inplace=True)
     gdf.geometry = gdf.buffer(10**-8)
-    gdf = gdf.loc[gdf['geometry'].is_valid]
+    #gdf = gdf.loc[gdf['geometry'].is_valid]
     # разбить мультигеометрию
     gdf = gdf.explode('geometry')
     gdf = gdf.to_crs(epsg=4326)

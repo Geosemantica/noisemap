@@ -3,23 +3,12 @@ from rtree import index
 import geopandas as gp
 
 
-def grid_intersection(data,grid,values,geoms):
+def grid_intersection(data,grid):
     print('Apply grid intersections...')
     gdf = gp.GeoDataFrame()
-    for x in range(data.shape[0]):
-        print("Intersection: processing ", data['value'].values[x])
-        geom1  = data.geometry.values[x]
-        value = data['value'].values[x]
-        for y in range(grid.shape[0]):
-            geom2  = grid.geometry.values[y]
-            if geom2.intersects(geom1):
-                g = geom2.intersection(geom1)
-                geoms.append(g)
-                values.append(value)
-    gdf.geometry = geoms
-    gdf['value'] = values
-    print('gdf done')
-    return gdf
+    gdf = gdf.append(gp.overlay(data, grid, how="intersection"))
+    gdf = gdf.append(gp.overlay(data, grid, how="difference"))
+    return gdf[['geometry', 'value']].reset_index()
 
 
 def geo_difference(gdf1, gdf2):

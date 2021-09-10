@@ -40,10 +40,10 @@ def generate_grids(noise_makers='./noise_makers.geojson', houses='./houses.geojs
     houses['area'] = houses.area
 
     bounds = gp.read_file(noise_makers).to_crs(epsg=proj).total_bounds
-    # построить сетку для разрезания полигонов шума на меньшие куски
-    make_fishnet(bounds, cell_size, cell_size, file=f"./super_grid.shp")
     # построить сетку для расчета плотности зданий
     make_fishnet(bounds, file=f"./grid.shp")
+    # построить сетку для разрезания полигонов шума на меньшие куски
+    make_fishnet(bounds, cell_size, cell_size, file=f"./super_grid.shp")
     grid = gp.read_file(f"{path}/grid.shp")
     grid.crs = f"EPSG:{proj}"
     print('grid ready')
