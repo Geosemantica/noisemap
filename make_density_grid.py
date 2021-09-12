@@ -30,7 +30,7 @@ def make_fishnet(bbox, dx=1000, dy=1000, file='grid.shp'):
                 w.record(id)
 
 
-def generate_grids(noise_makers='./noise_makers.geojson', houses='./houses.geojson', cell_size=400, proj=32636):
+def generate_grids(noise_makers='./noise_makers.geojson', houses='./houses.geojson', buffer=0, cell_size=400, proj=32636):
     print("Generating grids...")
     houses = gp.read_file(houses)
     houses = houses.to_crs(epsg=proj)
@@ -43,6 +43,7 @@ def generate_grids(noise_makers='./noise_makers.geojson', houses='./houses.geojs
     # построить сетку для расчета плотности зданий
     make_fishnet(bounds, file=f"./grid.shp")
     # построить сетку для разрезания полигонов шума на меньшие куски
+    bounds = bounds[0]-buffer, bounds[1]-buffer, bounds[2]+buffer, bounds[3]+buffer
     make_fishnet(bounds, cell_size, cell_size, file=f"./super_grid.shp")
     grid = gp.read_file(f"{path}/grid.shp")
     grid.crs = f"EPSG:{proj}"

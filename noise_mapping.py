@@ -97,10 +97,11 @@ if __name__ == '__main__':
     parser.add_argument('-t', '--tags', default='./tags.csv', help='path to csv file with noise level of every type of object')
     parser.add_argument('-c', '--cell-size', default=400, type=int, help="size of cells in grid for cutting"
                                                                         "(simplification) of resulting polygons")
+    parser.add_argument("-g", "--grid-buffer", default=0, type=int, help="buffer of dense grid to seize all polygons")
     parser.add_argument('--with-height', action='store_true', help="use height of osm objects in calculations")
     args = parser.parse_args()
     levels = [45, 55, 65] if not args.noise_levels else args.noise_levels
     levels.sort()
     preprocess(file=args.export, use_height=args.with_height)
-    generate_grids(houses=args.buildings, cell_size=args.cell_size, proj=args.projection)
+    generate_grids(houses=args.buildings, buffer=args.grid_buffer, cell_size=args.cell_size, proj=args.projection)
     make_map(tags=args.tags, proj=args.projection, levels=levels, use_height=args.with_height)
